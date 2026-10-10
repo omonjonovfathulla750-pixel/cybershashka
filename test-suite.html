@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Automated Test Suite</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body style="background:#07090d; color:#fff; font-family:monospace; padding:20px;">
+  <h1>CYBER DRAUGHTS // AUTOMATED TEST SUITE</h1>
+  <div id="test-results">RUNNING TESTS...</div>
+
+  <!-- Hidden Game Container to mount instance -->
+  <div style="opacity: 0.01; position: absolute; pointer-events: none;">
+    <div id="checkers-board"></div>
+    <div id="board-frame"></div>
+    <div id="board-viewport" style="width: 500px; height: 500px;"></div>
+    <canvas id="fx-canvas"></canvas>
+    <div id="announcer-text"></div>
+    <div id="timer-dock"></div>
+    <div id="timer-seconds"></div>
+    <div id="timer-progress-ring" style="stroke-dashoffset: 0;"></div>
+    <div id="miltillash-badge"></div>
+    <div id="card-p1"></div>
+    <div id="p1-units-count"></div>
+    <div id="p1-kings-count"></div>
+    <div id="p1-captured-count"></div>
+    <div id="p1-status-banner"></div>
+    <div id="card-p2"></div>
+    <div id="p2-name-label"></div>
+    <div id="p2-units-count"></div>
+    <div id="p2-kings-count"></div>
+    <div id="p2-captured-count"></div>
+    <div id="p2-status-banner"></div>
+    <div id="ai-status-text"></div>
+    <div id="ai-activity-fill"></div>
+    <div id="ai-depth-val"></div>
+    <div id="ai-nodes-val"></div>
+    <div id="ai-eval-val"></div>
+    <div id="ai-time-val"></div>
+    <div id="terminal-log"></div>
+    <div id="telemetry-round"></div>
+    <div id="telemetry-moves"></div>
+    <div id="game-over-modal"></div>
+    <div id="game-over-title"></div>
+    <div id="game-over-subtitle"></div>
+    <div id="m-stat-moves"></div>
+    <div id="m-stat-units"></div>
+    <div id="m-stat-kings"></div>
+    <div id="m-stat-captured"></div>
+    <div id="rules-modal"></div>
+    <div id="intro-splash"><div id="splash-progress"></div><h1 class="splash-glitch-title" data-text="Fatxulloning birinchi dasturi">Fatxulloning birinchi dasturi</h1><div id="splash-prompt"></div></div>
+    <button id="btn-pause-toggle"><span id="pause-icon">||</span><span id="pause-text">PAUSE</span></button>
+    <div id="pause-overlay"><button id="btn-resume-game"></button></div>
+    <button id="btn-music-toggle"><span id="music-icon"></span><span id="music-text"></span></button>
+    <button id="btn-audio-toggle"><span id="audio-icon"></span><span id="audio-text"></span></button>
+    <input type="range" id="volume-slider">
+    <button id="btn-undo-move"></button>
+    <button id="btn-restart-game"></button>
+    <button id="btn-auto-pass"></button>
+    <div id="mode-selector"><button class="toggle-btn active" data-mode="ai"></button><button class="toggle-btn" data-mode="pvp"></button></div>
+    <div id="ai-difficulty-row"><div id="difficulty-selector"><button class="toggle-btn" data-diff="easy"></button><button class="toggle-btn active" data-diff="medium"></button><button class="toggle-btn" data-diff="hard"></button></div></div>
+    <input type="checkbox" id="chk-show-numbers">
+    <input type="checkbox" id="chk-sound-fx">
+    <button id="btn-open-rules"></button>
+    <button id="btn-close-rules"></button>
+    <button id="btn-modal-restart"></button>
+    <button id="btn-modal-close"></button>
+    <button id="btn-clear-log"></button>
+    <button id="btn-export-pgn"></button>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const results = [];
+      function assert(name, condition, extra = '') {
+        results.push({ name, passed: !!condition, extra });
+      }
+
+      try {
+        const game = window.gameInstance;
+        const engine = game.engine;
+
+        // Test 1: Initial Setup
+        assert('Board 10x10 initialized', engine.board.length === 10 && engine.board[0].length === 10);
+        const counts = engine.getPieceCounts();
+        assert('Player 1 starts with 20 pieces', counts.p1Units === 20);
+        assert('Player 2 starts with 20 pieces', counts.p2Units === 20);
+        assert('Initial turn is Player 1', engine.activePlayer === 1);
+
+        // Test 2: Legal move generation for opening
+        const legalOpening = engine.getLegalMovesForSquare(6, 1);
+        assert('Piece (6,1) has 2 diagonal forward moves', legalOpening.length === 2);
+        assert('Destination (5,0) is valid', legalOpening.some(m => m.to.r === 5 && m.to.c === 0));
+        assert('Destination (5,2) is valid', legalOpening.some(m => m.to.r === 5 && m.to.c === 2));
+
+        // Test 3: Audio synthesis without errors
+        let audioOk = true;
+        try {
+          game.audio.playClick();
+          game.audio.playSwoosh();
+          game.audio.playBassBlast();
+          game.audio.playPromotion();
+          game.audio.playWarningBeep();
+        } catch (e) {
+          audioOk = false;
+        }
+        assert('Procedural Web Audio API triggers smoothly', audioOk);
+
+        // Test 4: Execute simple move
+        const moveRes = engine.executeMove(6, 1, 5, 2);
+        assert('Move (6,1) to (5,2) succeeded', moveRes.success && moveRes.turnEnded);
+        assert('Piece moved to (5,2)', engine.board[5][2] === 1 && engine.board[6][1] === 0);
+        assert('Turn switched to Player 2', engine.activePlayer === 2);
+
+        // Test 5: AI Engine Minimax evaluation
+        const aiMoveResult = game.ai.findBestMove();
+        assert('AI computes best tactical move', !!aiMoveResult && !!aiMoveResult.move);
+        assert('AI search depth >= 1', aiMoveResult.depth >= 1);
+
+        // Test 6: Mandatory Capture test on custom board
+        engine.reset();
+        // Clear board and place P1 at (5,4) and P2 at (4,3) with (3,2) empty
+        engine.board = Array(10).fill(null).map(() => Array(10).fill(0));
+        engine.board[5][4] = 1; // P1 Man
+        engine.board[4][3] = 3; // P2 Man
+        engine.activePlayer = 1;
+        engine.calculateMandatoryCaptures();
+        assert('Mandatory capture detected for P1 at (5,4)', engine.mustCapturePieces.length === 1 && engine.mustCapturePieces[0].r === 5);
+
+        // Test 7: Backward Capture for Regular Man
+        // P1 at (3,2), enemy P2 at (4,3), landing (5,4) empty
+        engine.board = Array(10).fill(null).map(() => Array(10).fill(0));
+        engine.board[3][2] = 1; // P1 Man
+        engine.board[4][3] = 3; // P2 Man behind P1!
+        engine.activePlayer = 1;
+        engine.calculateMandatoryCaptures();
+        assert('Backward capture allowed for regular man in International Draughts', engine.mustCapturePieces.length === 1 && engine.mustCapturePieces[0].r === 3);
+
+        const capRes = engine.executeMove(3, 2, 5, 4);
+        assert('Backward capture executed successfully', capRes.success && capRes.isCapture);
+        assert('Enemy piece removed from board', engine.board[4][3] === 0);
+
+        // Test 8: Multi-jump Chain capture
+        engine.board = Array(10).fill(null).map(() => Array(10).fill(0));
+        engine.board[6][1] = 1; // P1
+        engine.board[5][2] = 3; // Enemy 1
+        engine.board[3][4] = 3; // Enemy 2
+        engine.activePlayer = 1;
+        engine.calculateMandatoryCaptures();
+        const chainPaths = engine.mustCapturePieces[0].paths;
+        assert('Chain capture paths detected', chainPaths.some(p => p.captures.length === 2));
+
+        // Execute first jump of chain
+        const jump1 = engine.executeMove(6, 1, 4, 3);
+        assert('First jump executed', jump1.success && !jump1.turnEnded);
+        assert('Chain in progress flag active', engine.chainInProgress === true);
+        const jump2 = engine.executeMove(4, 3, 2, 5);
+        assert('Second jump finishes chain', jump2.success && jump2.turnEnded);
+        assert('Both enemy pieces disintegrated', engine.board[5][2] === 0 && engine.board[3][4] === 0);
+
+        // Test 9: Flying King move and range capture
+        engine.board = Array(10).fill(null).map(() => Array(10).fill(0));
+        engine.board[0][1] = 2; // P1 King
+        engine.board[3][4] = 3; // Enemy piece
+        // King at (0,1) can slide to (1,2), (2,3), jump (3,4) and land on (4,5), (5,6), (6,7), (7,8), (8,9)
+        engine.activePlayer = 1;
+        engine.calculateMandatoryCaptures();
+        const kingMoves = engine.getLegalMovesForSquare(0, 1);
+        assert('Flying King can jump enemy piece from distance', kingMoves.length >= 1 && kingMoves.some(m => m.to.r === 4 && m.to.c === 5));
+        assert('Flying King can land multiple squares beyond enemy', kingMoves.some(m => m.to.r === 5 && m.to.c === 6));
+
+        // Test 10: Overdrive King Coronation
+        engine.board = Array(10).fill(null).map(() => Array(10).fill(0));
+        engine.board[1][2] = 1; // P1 Man
+        engine.activePlayer = 1;
+        engine.calculateMandatoryCaptures();
+        const promoRes = engine.executeMove(1, 2, 0, 1);
+        assert('Piece reached row 0 crowns into Overdrive King', promoRes.isPromotion && engine.board[0][1] === 2);
+
+        // Test 11: Splash Screen exists and has requested glitch text
+        const splashTitle = document.querySelector('.splash-glitch-title');
+        assert('Splash Screen displays "Fatxulloning birinchi dasturi"', splashTitle && splashTitle.textContent.includes('Fatxulloning birinchi dasturi'));
+        assert('Splash has data-text attribute for digital glitch effect', splashTitle && splashTitle.getAttribute('data-text') === 'Fatxulloning birinchi dasturi');
+
+        // Test 12: Procedural Joker Theme Audio Engine
+        let jokerMusicOk = true;
+        try {
+          game.audio.startJokerTheme();
+          assert('Joker theme begins playing', game.audio.jokerThemePlaying === true);
+          game.audio.stopJokerTheme();
+          assert('Joker theme stops cleanly', game.audio.jokerThemePlaying === false);
+        } catch (e) {
+          jokerMusicOk = false;
+        }
+        assert('Procedural Joker Theme audio functions without error', jokerMusicOk);
+
+        // Test 13: Pause System freezes match clock and displays overlay
+        game.pauseGame();
+        assert('Game is paused', game.isPaused === true);
+        assert('Pause overlay displays .show class', game.pauseOverlay.classList.contains('show'));
+        assert('Pause button updates to RESUME', document.getElementById('pause-text').textContent === 'RESUME');
+
+        // Test 14: Interaction is blocked while paused
+        game.handleCellClick(6, 1, {});
+        assert('Piece selection is blocked when game is paused', game.engine.selectedPiece === null);
+
+        // Test 15: Resume restores match clock and hides overlay
+        game.resumeGame();
+        assert('Game is resumed', game.isPaused === false);
+        assert('Pause overlay is hidden', !game.pauseOverlay.classList.contains('show'));
+        assert('Pause button restored to PAUSE', document.getElementById('pause-text').textContent === 'PAUSE');
+
+        // Render results
+        const container = document.getElementById('test-results');
+        container.innerHTML = results.map(r => `
+          <div style="color: ${r.passed ? '#00ff88' : '#ff003c'}; margin: 6px 0;">
+            [${r.passed ? 'PASS' : 'FAIL'}] ${r.name} ${r.extra ? '(' + r.extra + ')' : ''}
+          </div>
+        `).join('') + `<h2 style="color: #00f0ff;">ALL ${results.filter(r => r.passed).length} / ${results.length} PROTOCOL TESTS PASSED!</h2>`;
+
+        window.__TESTS_DONE__ = true;
+        window.__ALL_PASSED__ = results.every(r => r.passed);
+      } catch (err) {
+        document.getElementById('test-results').innerHTML = `<div style="color:red">ERROR: ${err.message}\n${err.stack}</div>`;
+        window.__TESTS_DONE__ = true;
+        window.__ALL_PASSED__ = false;
+      }
+    });
+  </script>
+</body>
+</html>

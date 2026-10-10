@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Interactive Test</title>
+</head>
+<body style="margin:0; background:#07090d;">
+  <iframe id="game-frame" src="index.html" style="width:1600px; height:980px; border:none;"></iframe>
+  <script>
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        const frame = document.getElementById('game-frame');
+        const doc = frame.contentDocument || frame.contentWindow.document;
+        // Click on cyan piece at row 6, col 1
+        const targetCell = doc.querySelector('.cell[data-row="6"][data-col="1"]');
+        if (targetCell) {
+          targetCell.click();
+        }
+      }, 500);
+    });
+  </script>
+</body>
+</html>

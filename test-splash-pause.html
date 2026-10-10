@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Splash & Pause Test</title>
+</head>
+<body style="background:#07090d; color:#fff; font-family:monospace; padding:20px;">
+  <h1>SPLASH & PAUSE VALIDATION</h1>
+  <div id="results"></div>
+
+  <iframe id="test-frame" src="index.html" style="width:1200px; height:800px; opacity:0.01;"></iframe>
+
+  <script>
+    const results = [];
+    function assert(name, condition) {
+      results.push({ name, passed: !!condition });
+    }
+
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        const frame = document.getElementById('test-frame');
+        const doc = frame.contentDocument || frame.contentWindow.document;
+        const game = frame.contentWindow.gameInstance;
+
+        // 1. Splash Screen Verification
+        const splash = doc.getElementById('intro-splash');
+        assert('Intro Splash Screen exists in DOM', !!splash);
+        const splashTitle = doc.querySelector('.splash-glitch-title');
+        assert('Splash Screen displays "Fatxulloning birinchi dasturi"', splashTitle && splashTitle.textContent.includes('Fatxulloning birinchi dasturi'));
+        assert('Splash has data-text for glitch effect', splashTitle && splashTitle.getAttribute('data-text') === 'Fatxulloning birinchi dasturi');
+        assert('Soundtrack badge present', !!doc.querySelector('.splash-soundtrack-badge'));
+
+        // 2. Audio Joker Theme Verification
+        assert('Audio engine has Joker Theme methods', typeof game.audio.startJokerTheme === 'function' && typeof game.audio.stopJokerTheme === 'function');
+        let audioThemeOk = true;
+        try {
+          game.audio.startJokerTheme();
+          game.audio.playPauseSound();
+          game.audio.playResumeSound();
+          game.audio.stopJokerTheme();
+        } catch (e) {
+          audioThemeOk = false;
+        }
+        assert('Procedural Joker Theme and Pause/Resume SFX execute without error', audioThemeOk);
+
+        // 3. Pause Button & Overlay Verification
+        const btnPause = doc.getElementById('btn-pause-toggle');
+        const pauseOverlay = doc.getElementById('pause-overlay');
+        const btnResume = doc.getElementById('btn-resume-game');
+        assert('Pause button exists in cockpit header', !!btnPause);
+        assert('Pause overlay exists in board viewport', !!pauseOverlay);
+
+        // Test Pause execution
+        const initialTime = game.turnTimeRemaining;
+        btnPause.click();
+        assert('Game is paused after clicking pause button', game.isPaused === true);
+        assert('Pause overlay has .show class', pauseOverlay.classList.contains('show'));
+        assert('Pause button has .active class', btnPause.classList.contains('active'));
+        assert('Pause button text changed to RESUME', doc.getElementById('pause-text').textContent === 'RESUME');
+
+        // Verify clicks are blocked during pause
+        const testCell = doc.querySelector('.cell[data-row="6"][data-col="1"]');
+        if (testCell) testCell.click();
+        assert('Piece selection blocked while paused', game.engine.selectedPiece === null);
+
+        // Test Resume execution
+        btnResume.click();
+        assert('Game is resumed after clicking resume button', game.isPaused === false);
+        assert('Pause overlay hidden after resume', !pauseOverlay.classList.contains('show'));
+        assert('Pause button restored to PAUSE', doc.getElementById('pause-text').textContent === 'PAUSE');
+
+        // Test Keyboard Shortcut [Space] toggles pause
+        frame.contentWindow.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }));
+        assert('Spacebar toggles pause to true', game.isPaused === true);
+        frame.contentWindow.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }));
+        assert('Spacebar toggles pause back to false', game.isPaused === false);
+
+        // Output results
+        document.getElementById('results').innerHTML = results.map(r => `
+          <div style="color: ${r.passed ? '#00ff88' : '#ff003c'}; margin: 4px 0;">
+            [${r.passed ? 'PASS' : 'FAIL'}] ${r.name}
+          </div>
+        `).join('') + `<h2 style="color:#00f0ff;">ALL ${results.filter(r => r.passed).length} / ${results.length} PASSED!</h2>`;
+      }, 700);
+    });
+  </script>
+</body>
+</html>

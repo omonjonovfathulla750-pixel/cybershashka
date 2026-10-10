@@ -1,0 +1,25 @@
+# Operating System Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+*.tmp
+*.temp
+
+# Temporary Screenshots & Media Dumps
+shot*.png
+screenshot*.png
+*.log
+
+# Editor & IDE Configs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local Development / Cache
+.cache/
+node_modules/
+dist/
